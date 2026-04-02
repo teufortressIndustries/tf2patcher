@@ -272,6 +272,8 @@ bool do_patch(void) {
     // check memory first
     // unsigned char pattern2[] = {0x80, 0x3D, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
     // 0x74};
+    // TODO: not doing anything here doesnt make a difference as far as i can
+    // tell?
     unsigned char pattern2[] = {0x80, 0xA0, 0xFF, 0xFF, 0xFF, 0xFF, 0xC0, 0x0F};
 
     addr = find_mem(pattern2, sizeof(pattern2), addr, 200);
@@ -283,7 +285,7 @@ bool do_patch(void) {
       verbose_print("Found pattern 2 0x%" PRIXPTR "\n", (uintptr_t)addr);
       // rewrite jz to jmp
       addr += 7;
-      set_mem(addr, (unsigned char[]){0xEB}, 1);
+      // set_mem(addr, (unsigned char[]){0xEB}, 1);
       verbose_print("Rewrote JZ to JMP\n");
 
       // and thats pretty much it
