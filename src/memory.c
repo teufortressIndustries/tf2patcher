@@ -59,6 +59,7 @@ bool read_mem(const void *base, void *buf, size_t sz) {
 }
 
 // bruh
+// write to fd at address is prolly good idk
 bool set_mem(void *addr, const unsigned char pat[], size_t sz) { return false; }
 
 #endif
