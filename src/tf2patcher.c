@@ -294,7 +294,7 @@ bool do_patch(void) {
 
 int main(int argc, char *argv[]) {
   printf("  -------------------------------------------\n"
-         "  |       TF2 decal tool patcher 2.0.3       |\n"
+         "  |       TF2 decal tool patcher 2.0.4       |\n"
          "  | (c) default-username, Apr 2020, Mar 2016 |\n"
          "  |                        Updated June 2024 |\n"
 #ifdef LINUX
