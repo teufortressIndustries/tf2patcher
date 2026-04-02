@@ -1,3 +1,7 @@
+
+// this has to be here currently till i fuck with the makefile
+#define _GNU_SOURCE
+
 #include "base.h"
 #include "common.h"
 #include <string.h>
@@ -51,17 +55,25 @@ bool set_mem(void *addr, const unsigned char pat[], size_t sz) {
 }
 
 #elif defined(LINUX)
-
+#include <unistd.h>
 // stupid fucking chud function
 bool read_mem(const void *base, void *buf, size_t sz) {
-  memcpy(buf, base, sz);
+  // TODO: this means i gotta seek to the start for writes but its fine
+  if (pread(pinfo.mem_fd, buf, sz, (off_t)base) != (ssize_t)sz) {
+    perror("error reading memory");
+    return false;
+  }
   return true;
 }
 
 // bruh
 // write to fd at address is prolly good idk
-bool set_mem(void *addr, const unsigned char pat[], size_t sz) { return false; }
-
+bool set_mem(void *addr, const unsigned char pat[], size_t sz) {
+  // lseek(pinfo.mem_fd, pinfo.offset, SEEK_SET);
+  if ((ssize_t)sz != pwrite(pinfo.mem_fd, pat, sz, (off_t)addr))
+    perror("Error writing bytes");
+  return true;
+}
 #endif
 
 bool compare_mem(const void *dst, const void *pat, size_t sz) {

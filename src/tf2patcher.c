@@ -215,6 +215,8 @@ bool calc_client_module_bounds(void) {
     exit(-1);
 
   pinfo.mem_fd = mem_fd;
+  pinfo.offset = g_start_addr;
+  pinfo.cl_base = (unsigned char *)g_start_addr;
 
   pinfo.cl_size = g_end_addr - g_start_addr;
   printf("start: %lx, end: %lx, size: %lx\n", g_start_addr, g_end_addr,
@@ -222,26 +224,11 @@ bool calc_client_module_bounds(void) {
 
   fclose(maps_file);
 
-  // fuck it copy whole fucking thing into memory
-  // cause idk what the fuck is going on in windows
-  pinfo.cl_base = (unsigned char *)malloc(pinfo.cl_size);
-  if (!pinfo.cl_base)
-    exit(-1);
-
   if (lseek(mem_fd, g_start_addr, SEEK_SET) < 0) {
     perror("lseek");
-    free(pinfo.cl_base);
     exit(-1);
   }
 
-  if (read(mem_fd, pinfo.cl_base, pinfo.cl_size) != (ssize_t)pinfo.cl_size) {
-    perror("error reading memory");
-    free(pinfo.cl_base);
-    exit(-1);
-  }
-
-  // iterate through the client.so
-  // map has the locations of the memory in it, mem_fd has the memory in it
   return 1;
 };
 
@@ -272,8 +259,8 @@ bool do_patch(void) {
             "pattern in client library!\n");
   } else {
     verbose_print("CConfirmCustomizeTextureDialog::PerformFilter pattern addr: "
-                  "0x%" PRIXPTR "\n",
-                  (uintptr_t)addr);
+                  "0x%" PRIXPTR " (offset: 0x%" PRIXPTR ")\n",
+                  (uintptr_t)addr, (uintptr_t)(addr - pinfo.cl_base));
 
     // rewrite call to mov in order to force identity filter
     // TODO: should be done
