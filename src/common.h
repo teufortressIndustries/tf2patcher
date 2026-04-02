@@ -13,7 +13,6 @@ typedef struct pinfo_s {
 #elif defined(LINUX)
   pid_t pid;
   int mem_fd;
-  unsigned long offset;
 #endif
 
   unsigned char *cl_base;

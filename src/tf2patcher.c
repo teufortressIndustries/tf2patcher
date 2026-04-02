@@ -4,9 +4,6 @@
  * (c) default-username 2020
  */
 
-// this has to be here currently till i fuck with the makefile
-#define _GNU_SOURCE
-
 #include "base.h"
 #include "common.h"
 #include "memory.h"
@@ -128,30 +125,23 @@ void free_resources(void) {
 }
 
 #elif defined(LINUX)
-#include <fcntl.h>
-#include <stdio.h>
-#include <strings.h>
-#include <sys/ptrace.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <time.h>
-
 bool get_client_so(void) { return 1; }
 
 bool attach_to_tf2(void) {
-  // partly from equip region patcher
+  // partly from equip region patcher by rsed
+  // https://raw.githubusercontent.com/rsedxcftvgyhbujnkiqwe/tf2-equip-region-patcher-linux/refs/heads/master/tf2-patcher.c
   // find pid by name
   pid_t pid = -1;
   char cmd[] = "pgrep tf_linux64";
   FILE *fp = popen(cmd, "r");
   if (!fp) {
     perror("popen");
-    exit(-1);
+    return 0;
   }
 
   if (fscanf(fp, "%d", &pid) != 1) {
     printf("fscanf !=1");
-    exit(-1);
+    return 0;
   }
 
   pclose(fp);
@@ -160,7 +150,7 @@ bool attach_to_tf2(void) {
   // attach
   if (ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1) {
     perror("ptrace attach");
-    exit(-1);
+    return 0;
   }
   waitpid(pid, NULL, 0);
 
@@ -175,6 +165,7 @@ void free_resources(void) {
     perror("ptrace detace");
   close(pinfo.mem_fd);
 }
+
 bool calc_client_module_bounds(void) {
   // scan /proc/PID/maps for client.so
   char maps_filename[256], mem_filename[256];
@@ -193,6 +184,7 @@ bool calc_client_module_bounds(void) {
     return 0;
   }
 
+  // search maps for /client.so
   unsigned long g_start_addr = 0, g_end_addr = 0;
   char line[256];
   while (fgets(line, sizeof(line), maps_file))
@@ -212,10 +204,9 @@ bool calc_client_module_bounds(void) {
     }
 
   if (!g_start_addr && !g_end_addr)
-    exit(-1);
+    return 0;
 
   pinfo.mem_fd = mem_fd;
-  pinfo.offset = g_start_addr;
   pinfo.cl_base = (unsigned char *)g_start_addr;
 
   pinfo.cl_size = g_end_addr - g_start_addr;
@@ -226,7 +217,7 @@ bool calc_client_module_bounds(void) {
 
   if (lseek(mem_fd, g_start_addr, SEEK_SET) < 0) {
     perror("lseek");
-    exit(-1);
+    return 0;
   }
 
   return 1;
@@ -238,20 +229,31 @@ bool calc_client_module_bounds(void) {
 bool do_patch(void) {
   printf("Patching...\n");
 
-  // CConfirmCustomizeTextureDialog::PerformFilter
-  // unsigned char pattern[] = {0xBA, 0x04, 0x00, 0x00, 0x00, 0x48, 0x8B,
-  //                            0xFF, 0xFF, 0x90, 0xFF, 0xFF, 0x00, 0x00,
-  //                            0x48, 0x8B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-  //                            0xE8, 0xFF, 0xFF, 0xFF, 0xFF, 0x85, 0xFF};
-  // unsigned char pattern[] = {0x48, 0x8B, 0xFF, 0xFF, 0x90, 0xFF, 0xFF, 0x00,
-  //                            0x00, 0x48, 0x8B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-  //                            0xE8, 0xFF, 0xFF, 0xFF, 0xFF, 0x85, 0xFF};
-  //
+// CConfirmCustomizeTextureDialog::PerformFilter
+#ifdef WINDOWS
+  unsigned char pattern[] = {0xBA, 0x04, 0x00, 0x00, 0x00, 0x48, 0x8B,
+                             0xFF, 0xFF, 0x90, 0xFF, 0xFF, 0x00, 0x00,
+                             0x48, 0x8B, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                             0xE8, 0xFF, 0xFF, 0xFF, 0xFF, 0x85, 0xFF};
+  int addr_bump = 21;
+
+  unsigned char pattern2[] = {0x80, 0x3D, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x74};
+  unsigned char patch2[] = {0xEB};
+  int patch_sz2 = 1;
+#elif defined(LINUX)
   unsigned char pattern[] = {0x48, 0x89, 0xFF, 0xFF, 0x48, 0x8b, 0xFF,
                              0x48, 0x8b, 0xFF, 0xFF, 0x90, 0xFF, 0xFF,
                              0x00, 0x00, 0x48, 0x8B, 0xFF, 0xFF, 0xFF,
                              0xFF, 0xFF, 0xE8, 0xFF, 0xFF, 0xFF, 0xFF};
-  // 48 8B . . 90 . . 00 00 48 8B . . . . . E8 . . . . 85 .
+  int addr_bump = 23;
+
+  // NOTE: this patches a different jump to the windows version. it gives the
+  // same effect, i just found this JLE before i found the JZ.
+  unsigned char pattern2[] = {0x80, 0xA0, 0xFF, 0xFF, 0xFF, 0xFF, 0xC0, 0x0F};
+  unsigned char patch2[] = {0x48, 0xE9};
+  int patch_sz2 = 2;
+#endif
+
   unsigned char *addr = find_mem_cl(pattern, sizeof(pattern));
   if (!addr) {
     fprintf(stderr,
@@ -263,19 +265,12 @@ bool do_patch(void) {
                   (uintptr_t)addr, (uintptr_t)(addr - pinfo.cl_base));
 
     // rewrite call to mov in order to force identity filter
-    // TODO: should be done
-    addr += 23;
+    addr += addr_bump;
     set_mem(addr, (unsigned char[]){0xB8, 0x01, 0x00, 0x00, 0x00}, 5);
     verbose_print("Rewrote CALL to MOV\n");
 
     // disable blending
     // check memory first
-    // unsigned char pattern2[] = {0x80, 0x3D, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
-    // 0x74};
-    // TODO: not doing anything here doesnt make a difference as far as i can
-    // tell?
-    unsigned char pattern2[] = {0x80, 0xA0, 0xFF, 0xFF, 0xFF, 0xFF, 0xC0, 0x0F};
-
     addr = find_mem(pattern2, sizeof(pattern2), addr, 200);
     if (!addr) {
       fprintf(stderr,
@@ -285,7 +280,7 @@ bool do_patch(void) {
       verbose_print("Found pattern 2 0x%" PRIXPTR "\n", (uintptr_t)addr);
       // rewrite jz to jmp
       addr += 7;
-      set_mem(addr, (unsigned char[]){0x48, 0xE9}, 2);
+      set_mem(addr, patch2, patch_sz2);
       verbose_print("Rewrote JZ to JMP\n");
 
       // and thats pretty much it
@@ -302,6 +297,9 @@ int main(int argc, char *argv[]) {
          "  |       TF2 decal tool patcher 2.0.3       |\n"
          "  | (c) default-username, Apr 2020, Mar 2016 |\n"
          "  |                        Updated June 2024 |\n"
+#ifdef LINUX
+         "  | linux port by yari             Apr  2026 |\n"
+#endif
          "  -------------------------------------------\n"
          "\n");
 
