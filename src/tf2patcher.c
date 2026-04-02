@@ -285,7 +285,7 @@ bool do_patch(void) {
       verbose_print("Found pattern 2 0x%" PRIXPTR "\n", (uintptr_t)addr);
       // rewrite jz to jmp
       addr += 7;
-      // set_mem(addr, (unsigned char[]){0xEB}, 1);
+      set_mem(addr, (unsigned char[]){0x48, 0xE9}, 2);
       verbose_print("Rewrote JZ to JMP\n");
 
       // and thats pretty much it
