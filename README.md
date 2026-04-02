@@ -6,8 +6,7 @@ This tool allows you to remove various restrictions when applying a decal to a d
 
 In short, now you can apply fully-colored images to your Objectors, Flairs, Photo Badges and Clan Prides.
 
-This is a June 2024 fix of [tf2patcher](https://github.com/default-username-was-already-taken/tf2patcher). The original
-tool was abandoned and likely broke due to the TF2 64-bit update.
+This is a April 2026 update of [tf2patcher](https://github.com/dborodin836/tf2patcher) that ports compatibility to Linux.
 
 ## Is it safe?
 
@@ -17,14 +16,17 @@ tool was abandoned and likely broke due to the TF2 64-bit update.
 > It is unlikely that this tool will be detected by VAC. **However:**
 >
 > - It may be a good idea to take a look at current active issues;
+> - I recommend running TF2 in ``-insecure`` mode while you do this.
 > - After running this tool, **be sure to close TF2**. You can then safely open it again. This is not strictly
     necessary, but it's best to clear all memory modifications before connecting to a secure server.
 
 ## How to use
 
-1. Download the latest release [here](https://github.com/dborodin836/tf2patcher/releases/latest);
+### Windows
 
-2. Run tf2patcher.exe and launch TF2 (or do it in reverse, the order does not matter);
+1. Download the latest release [here](https://github.com/yari-dog/tf2patcher/releases/latest);
+
+2. Run tf2patcher and launch TF2 (or do it in reverse, the order does not matter. Linux shouldn't require sudo/doas);
 
 3. Now try applying a decal to your item - the preview pane should show a fully-colored image;
 
@@ -43,13 +45,11 @@ What exactly gets patched:
 - m_pFilterCombo->GetActiveItem() call gets changed to "mov eax, 1" (reg/imm32 form) - this forces an "Identity" filter
   no matter what the schema says;
 
-- bDoBlendLayers conditional jump gets changed to an inconditional jump (this skips all blending code altogether).
+- bDoBlendLayers conditional jump gets changed to an inconditional jump (this skips all blending code altogether). (this is a JLE > JMP patch on linux)
 
 ## Linux support?
 
-Currently, this project can only be built for Windows (both x86 and x86-64).
-
-I may add Linux support later, but I don't feel like doing it right now.
+This linux support was added by yari-dog. if you think it's swag you should call me a good boy.
 
 ## License
 
