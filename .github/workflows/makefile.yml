@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ "current" ]
 
-# Grant write permissions for the release step
 permissions:
   contents: write
 
@@ -16,6 +15,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Build Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/pip
+          linuxdeploy-x86_64.AppImage
+        key: ${{ runner.os }}-build-tools
 
     - name: Install Build Dependencies
       run: |
@@ -23,13 +32,14 @@ jobs:
         sudo apt-get install -y build-essential libfuse2 wget
 
     - name: Build
-      run: |
-        make TARGET=64
+      run: make TARGET=64
 
     - name: Download LinuxDeploy
       run: |
-        wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-        chmod +x linuxdeploy-x86_64.AppImage
+        if [ ! -f linuxdeploy-x86_64.AppImage ]; then
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+        fi
 
     - name: Create AppImage
       run: |
@@ -37,7 +47,6 @@ jobs:
         cp bin/tf2patcher AppDir/usr/bin/
         
         export ARCH=x86_64
-        # Setting VERSION handles the AppImage filename automatically
         export VERSION=$(git rev-parse --short HEAD)
         
         ./linuxdeploy-x86_64.AppImage --appdir AppDir \
@@ -51,18 +60,17 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: tf2patcher-AppImage
+        name: tf2patcher-${{ github.sha }}
         path: "*.AppImage"
 
-    # Only release on pushes to the 'current' branch, not PRs
     - name: Continuous Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/current'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: continuous
-        name: "Continuous Build"
-        body: "Automated build of the latest commit on the `current` branch."
+        name: "Continuous Build (${{ github.sha }})"
+        body: |
+          Automated build from branch `current`.
+          Commit: ${{ github.sha }}
         prerelease: true
-        files: |
-          *.AppImage
-          bin/tf2patcher
+        files: "*.AppImage"
