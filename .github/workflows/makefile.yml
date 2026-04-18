@@ -6,45 +6,63 @@ on:
   pull_request:
     branches: [ "current" ]
 
+# Grant write permissions for the release step
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Install Build Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libfuse2 wget
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libfuse2 wget
 
-      - name: Build
-        run: |
-          make TARGET=64
+    - name: Build
+      run: |
+        make TARGET=64
 
-      - name: Download LinuxDeploy
-        run: |
-          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
+    - name: Download LinuxDeploy
+      run: |
+        wget https://github.com/linuxdeploy/linuxdeploy-x86_64.AppImage
+        chmod +x linuxdeploy-x86_64.AppImage
 
-      - name: Create AppImage
-        run: |
-          # Prepare a minimal AppDir manually since the Makefile lacks an 'install' target
-          mkdir -p AppDir/usr/bin
-          cp bin/tf2patcher AppDir/usr/bin/
-          
-          # Run linuxdeploy to bundle the binary, desktop file, and icon
-          export ARCH=x86_64
-          ./linuxdeploy-x86_64.AppImage --appdir AppDir \
-            -e AppDir/usr/bin/tf2patcher \
-            -i tf2patcher.png \
-            -d tf2patcher.desktop \
-            --output appimage
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: 1
+    - name: Create AppImage
+      run: |
+        mkdir -p AppDir/usr/bin
+        cp bin/tf2patcher AppDir/usr/bin/
+        
+        export ARCH=x86_64
+        # Setting VERSION handles the AppImage filename automatically
+        export VERSION=$(git rev-parse --short HEAD)
+        
+        ./linuxdeploy-x86_64.AppImage --appdir AppDir \
+          -e AppDir/usr/bin/tf2patcher \
+          -i tf2patcher.png \
+          -d tf2patcher.desktop \
+          --output appimage
+      env:
+        APPIMAGE_EXTRACT_AND_RUN: 1
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tf2patcher-AppImage
-          path: "*.AppImage"
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tf2patcher-AppImage
+        path: "*.AppImage"
+
+    # Only release on pushes to the 'current' branch, not PRs
+    - name: Continuous Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/current'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: continuous
+        name: "Continuous Build"
+        body: "Automated build of the latest commit on the `current` branch."
+        prerelease: true
+        files: |
+          *.AppImage
+          bin/tf2patcher
