@@ -24,7 +24,9 @@ jobs:
         path: |
           ~/.cache/pip
           linuxdeploy-x86_64.AppImage
-        key: ${{ runner.os }}-build-tools
+        key: ${{ runner.os }}-build-${{ hashFiles('**/Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-build-
 
     - name: Install Build Dependencies
       run: |
@@ -45,14 +47,17 @@ jobs:
       run: |
         mkdir -p AppDir/usr/bin
         cp bin/tf2patcher AppDir/usr/bin/
+        # Copy these so linuxdeploy finds them easily
+        cp tf2patcher.png AppDir/
+        cp tf2patcher.desktop AppDir/
         
         export ARCH=x86_64
         export VERSION=$(git rev-parse --short HEAD)
         
         ./linuxdeploy-x86_64.AppImage --appdir AppDir \
           -e AppDir/usr/bin/tf2patcher \
-          -i tf2patcher.png \
-          -d tf2patcher.desktop \
+          -i AppDir/tf2patcher.png \
+          -d AppDir/tf2patcher.desktop \
           --output appimage
       env:
         APPIMAGE_EXTRACT_AND_RUN: 1
@@ -60,17 +65,19 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: tf2patcher-${{ github.sha }}
-        path: "*.AppImage"
+        name: tf2patcher-latest
+        path: "TF2Patcher*.AppImage"
+        retention-days: 30
 
     - name: Continuous Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/current'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: continuous
-        name: "Continuous Build (${{ github.sha }})"
+        name: "Latest Continuous Build"
         body: |
-          Automated build from branch `current`.
-          Commit: ${{ github.sha }}
+          Last updated on commit ${{ github.sha }}.
+          This release is automatically updated on every push to the current branch.
         prerelease: true
-        files: "*.AppImage"
+        files: "TF2Patcher*.AppImage"
+        make_latest: true
