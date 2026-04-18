@@ -15,18 +15,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Set up Build Cache
       uses: actions/cache@v4
       with:
-        path: |
-          ~/.cache/pip
-          linuxdeploy-x86_64.AppImage
-        key: ${{ runner.os }}-build-${{ hashFiles('**/Makefile') }}
-        restore-keys: |
-          ${{ runner.os }}-build-
+        path: linuxdeploy-x86_64.AppImage
+        key: ${{ runner.os }}-linuxdeploy-${{ hashFiles('**/Makefile') }}
 
     - name: Install Build Dependencies
       run: |
@@ -45,20 +39,16 @@ jobs:
 
     - name: Create AppImage
       run: |
-        mkdir -p AppDir/usr/bin
-        cp bin/tf2patcher AppDir/usr/bin/
-        # Copy these so linuxdeploy finds them easily
-        cp tf2patcher.png AppDir/
-        cp tf2patcher.desktop AppDir/
-        
         export ARCH=x86_64
         export VERSION=$(git rev-parse --short HEAD)
         
         ./linuxdeploy-x86_64.AppImage --appdir AppDir \
-          -e AppDir/usr/bin/tf2patcher \
-          -i AppDir/tf2patcher.png \
-          -d AppDir/tf2patcher.desktop \
+          -e bin/tf2patcher \
+          -i tf2patcher.png \
+          -d tf2patcher.desktop \
           --output appimage
+
+        mv TF2Patcher*.AppImage tf2patcher.AppImage
       env:
         APPIMAGE_EXTRACT_AND_RUN: 1
 
@@ -66,8 +56,8 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: tf2patcher-latest
-        path: "tf2patcher*.AppImage"
-        retention-days: 30
+        path: tf2patcher.AppImage
+        retention-days: 7
 
     - name: Continuous Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/current'
@@ -75,9 +65,6 @@ jobs:
       with:
         tag_name: continuous
         name: "Latest Continuous Build"
-        body: |
-          Last updated on commit ${{ github.sha }}.
-          This release is automatically updated on every push to the current branch.
+        body: "Automated build from branch `current`. Commit: ${{ github.sha }}"
         prerelease: true
-        files: "tf2patcher*.AppImage"
-        make_latest: true
+        files: tf2patcher.AppImage
