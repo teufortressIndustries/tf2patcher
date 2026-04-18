@@ -66,7 +66,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: tf2patcher-latest
-        path: "TF2Patcher*.AppImage"
+        path: "tf2patcher*.AppImage"
         retention-days: 30
 
     - name: Continuous Release
@@ -79,5 +79,5 @@ jobs:
           Last updated on commit ${{ github.sha }}.
           This release is automatically updated on every push to the current branch.
         prerelease: true
-        files: "TF2Patcher*.AppImage"
+        files: "tf2patcher*.AppImage"
         make_latest: true
