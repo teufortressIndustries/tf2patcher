@@ -48,7 +48,7 @@ jobs:
           -d tf2patcher.desktop \
           --output appimage
 
-        mv TF2Patcher*.AppImage tf2patcher.AppImage
+        mv tf2patcher*.AppImage tf2patcher.AppImage
       env:
         APPIMAGE_EXTRACT_AND_RUN: 1
 
