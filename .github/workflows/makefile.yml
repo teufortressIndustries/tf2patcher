@@ -75,7 +75,9 @@ jobs:
       with:
         tag_name: continuous
         name: "Latest Continuous Build"
-        note: "Automated build from branch `current`. Commit: ${{ github.sha }}"
+        body: |
+          Automated build from branch `current`.
+          Commit: ${{ github.sha }}
         prerelease: true
         files: tf2patcher.AppImage
         make_latest: true
