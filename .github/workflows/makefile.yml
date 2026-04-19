@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [ "current" ]
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Type of build'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+        - Release
+        - Debug
 
 permissions:
   contents: write
@@ -18,19 +27,24 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install Dependencies
+      run: sudo apt-get update && sudo apt-get install -y libfuse2
 
     - name: Set up Build Cache
+      id: cache-linuxdeploy
       uses: actions/cache@v4
       with:
         path: linuxdeploy-x86_64.AppImage
         key: ${{ runner.os }}-linuxdeploy-v1
 
     - name: Download LinuxDeploy
+      if: steps.cache-linuxdeploy.outputs.cache-hit != 'true'
       run: |
-        if [ ! -f linuxdeploy-x86_64.AppImage ]; then
-          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
-        fi
+        wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+        chmod +x linuxdeploy-x86_64.AppImage
 
     - name: Build
       run: make TARGET=64
@@ -38,7 +52,7 @@ jobs:
     - name: Create AppImage
       run: |
         export ARCH=x86_64
-        export VERSION=$(git rev-parse --short HEAD)
+        export VERSION=$(git rev-parse --short HEAD || echo "dev")
         
         ./linuxdeploy-x86_64.AppImage --appdir AppDir \
           -e bin/tf2patcher \
@@ -46,7 +60,7 @@ jobs:
           -d tf2patcher.desktop \
           --output appimage
 
-        mv tf2patcher*.AppImage tf2patcher.AppImage
+        mv tf2patcher-x86_64.AppImage tf2patcher.AppImage
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -61,8 +75,7 @@ jobs:
       with:
         tag_name: continuous
         name: "Latest Continuous Build"
-        body: |
-          Automated build from branch `current`.
-          Commit: ${{ github.sha }}
+        note: "Automated build from branch `current`. Commit: ${{ github.sha }}"
         prerelease: true
         files: tf2patcher.AppImage
+        make_latest: true
