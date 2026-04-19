@@ -33,7 +33,7 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libfuse2
+        sudo apt-get install -y libfuse2 build-essential
 
     - name: Download LinuxDeploy
       run: |
@@ -41,7 +41,7 @@ jobs:
         chmod +x linuxdeploy-x86_64.AppImage
 
     - name: Build
-      run: make TARGET=64 MODE=${{ github.event.inputs.build_type || 'Release' }}
+      run: make TARGET=64 MODE=${{ inputs.build_type || 'Release' }}
 
     - name: Create AppImage
       run: |
@@ -59,19 +59,27 @@ jobs:
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: tf2patcher-${{ github.event.inputs.build_type || 'Release' }}
+        name: tf2patcher-${{ inputs.build_type || 'Release' }}
         path: tf2patcher.AppImage
         retention-days: 7
 
+    - name: Update Continuous Tag
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/current'
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -f continuous
+        git push -f origin continuous
+
     - name: Continuous Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/current'
+      if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/current'
       uses: softprops/action-gh-release@v2
       with:
         tag_name: continuous
         name: "Latest Continuous Build"
         body: |
           Automated build from branch `current`.
-          Build Type: ${{ github.event.inputs.build_type || 'Release' }}
+          Build Type: ${{ inputs.build_type || 'Release' }}
           Commit: ${{ github.sha }}
         prerelease: true
         files: tf2patcher.AppImage
