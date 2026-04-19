@@ -60,7 +60,7 @@ jobs:
           -d tf2patcher.desktop \
           --output appimage
 
-        mv tf2patcher-x86_64.AppImage tf2patcher.AppImage
+        mv tf2patcher*.AppImage tf2patcher.AppImage
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
